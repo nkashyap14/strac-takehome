@@ -11,9 +11,10 @@ class DriveConfig:
     _instance: Optional['DriveConfig'] = None
 
     def __new__(cls) -> 'DriveConfig':
+        #following the singleton pattern create an instance if one doesn't already exist
         if cls._instance is None:
             cls._instance = super(DriveConfig, cls).__new__(cls)
-            cls._instance.initialized = False
+            cls._instance._initialized = False
         return cls._instance
     
     def __init__(self) -> None:
