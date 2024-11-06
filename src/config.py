@@ -26,7 +26,7 @@ class DriveConfig:
         self.secrets = self.config_dir / 'secrets.json'
 
         self.scopes = [
-            'https://www.googleapis.com/auth/drive.file',  # For file operations
+            'https://www.googleapis.com/auth/drive',  # For file operations
             'https://www.googleapis.com/auth/drive.metadata.readonly'  # For listing files
         ]
 

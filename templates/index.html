@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8">Google Drive Manager</h1>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Upload Form -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Upload File</h2>
+            <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data" class="flex gap-4">
+                <input type="file" name="file" class="flex-1 p-2 border rounded">
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Upload</button>
+            </form>
+        </div>
+
+        <!-- Files List -->
+        <div class="bg-white rounded-lg shadow">
+            <h2 class="text-xl font-semibold p-6 border-b">Your Files</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Modified</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Permissions</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for file in files %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4">{{ file.name }}</td>
+                            <td class="px-6 py-4">{{ file.humanReadableType }}</td>
+                            <td class="px-6 py-4">{{ file.modifiedTime }}</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 text-sm rounded-full 
+                                    {% if file.permissionStatus == 'Owner' %}
+                                        bg-green-100 text-green-800
+                                    {% elif file.permissionStatus == 'Editor' %}
+                                        bg-blue-100 text-blue-800
+                                    {% elif file.permissionStatus == 'Viewer' %}
+                                        bg-yellow-100 text-yellow-800
+                                    {% else %}
+                                        bg-gray-100 text-gray-800
+                                    {% endif %}">
+                                    {{ file.permissionStatus }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex gap-2">
+                                    {% if file.canEdit %}
+                                        <a href="{{ url_for('download_file', file_id=file.id, filename=file.name) }}" 
+                                           class="text-blue-500 hover:text-blue-700">Download</a>
+                                    {% endif %}
+                                    
+                                    {% if file.canDelete %}
+                                        <form action="{{ url_for('delete_file', file_id=file.id) }}" method="post" class="inline">
+                                            <button type="submit" class="text-red-500 hover:text-red-700" 
+                                                    onclick="return confirm('Are you sure you want to delete this file?')">Delete</button>
+                                        </form>
+                                    {% endif %}
+
+                                    {% if not file.canEdit and not file.canDelete %}
+                                        <span class="text-gray-400">No available actions</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

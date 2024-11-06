@@ -46,8 +46,7 @@ def test_list_files(mock_build, drive_client):
     mock_build.assert_called_once_with('drive', 'v3', credentials=drive_client.auth_manager.get_credentials())
     files_mock.list.assert_called_once_with(
         pageSize=100,
-        fields="files(id, name, mimeType, modifiedTime)",
-        trashed=False  # Added this parameter
+        fields="files(id, name, mimeType, modifiedTime)"
     )
 
 @patch('src.drive.driveclient.build')

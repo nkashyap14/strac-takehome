@@ -13,6 +13,7 @@ def main():
     config = DriveConfig()
     auth_manager = AuthManager(config)
     drive_client = DriveClient(auth_manager)
+    download_path = "test_download.txt"
 
     try:
         # List existing files
@@ -28,7 +29,6 @@ def main():
 
         # Download the file to a new location
         print("\nDownloading the file...")
-        download_path = "test_download.txt"
         success = drive_client.download_file(uploaded_file['id'], download_path)
         if success:
             print("File downloaded successfully!")

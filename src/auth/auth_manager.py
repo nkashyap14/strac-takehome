@@ -1,10 +1,11 @@
+# Update auth_manager.py imports:
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import json
 import os
 from typing import Optional
-from ..config import DriveConfig
+from src.config import DriveConfig
 
 class AuthManager:
 
