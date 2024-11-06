@@ -5,6 +5,7 @@ import io
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 import ntpath
+import os
 
 class DriveClient:
     """
@@ -12,8 +13,30 @@ class DriveClient:
     Handles file operations and service initialization
     """
 
+    GOOGLE_MIME_TYPES = {
+        'application/vnd.google-apps.document': {
+            'mime_type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'extension': '.docx',
+            'description': 'Google Doc'
+        },
+        'application/vnd.google-apps.spreadsheet': {
+            'mime_type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'extension': '.xlsx',
+            'description': 'Google Sheet'
+        },
+        'application/vnd.google-apps.presentation': {
+            'mime_type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'extension': '.pptx',
+            'description': 'Google Slides'
+        },
+    }
+
+    FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
+
+
     MIME_TYPE_MAPPING = {
         # Google Workspace Types
+        
         'application/vnd.google-apps.document': 'Google Doc',
         'application/vnd.google-apps.spreadsheet': 'Google Sheet',
         'application/vnd.google-apps.presentation': 'Google Slides',
@@ -80,17 +103,13 @@ class DriveClient:
         self._service = None
 
     def _get_human_readable_type(self, mime_type: str) -> str:
-        """
-        Convert MIME type to human-readable format
-        
-        Args:
-            mime_type: The MIME type string
+        """Convert MIME type to human-readable format"""
+        # First check if it's a Google Workspace type
+        if mime_type in self.GOOGLE_MIME_TYPES:
+            return self.GOOGLE_MIME_TYPES[mime_type]['description']
             
-        Returns:
-            A human-readable version of the file type
-        """
+        # Use the existing MIME_TYPE_MAPPING for other types
         return self.MIME_TYPE_MAPPING.get(mime_type, mime_type)
-
 
     def _get_service(self):
         if not self._service:
@@ -111,23 +130,59 @@ class DriveClient:
             else:
                 return 'Viewer'
         return 'Limited Access'
+    
+    def _get_suggested_extension(self, mime_type: str) -> str:
+        """Get the suggested file extension for a mime type"""
+        mime_to_ext = {
+            'application/pdf': '.pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+            'text/plain': '.txt',
+            'image/jpeg': '.jpg',
+            'image/png': '.png',
+            'video/mp4': '.mp4',
+            'application/zip': '.zip',
+        }
+        return mime_to_ext.get(mime_type, '')
 
     def list_files(self) -> List[Dict[str, Any]]:
         service = self._get_service()
+        
+        # First get all folders to build a folder mapping
+        folder_results = service.files().list(
+            q=f"mimeType = '{self.FOLDER_MIME_TYPE}'",
+            fields="files(id, name)",
+        ).execute()
+        
+        folder_map = {folder['id']: folder['name'] 
+                     for folder in folder_results.get('files', [])}
+
+        # Then get all non-folder files with their parent information
         results = service.files().list(
+            q=f"mimeType != '{self.FOLDER_MIME_TYPE}'",  # Exclude folders
             pageSize=100,
-            fields="files(id, name, mimeType, modifiedTime, capabilities/canEdit, capabilities/canDelete, shared, ownedByMe)",
+            fields="files(id, name, mimeType, modifiedTime, capabilities/canEdit, capabilities/canDelete, shared, ownedByMe, parents)",
         ).execute()
         
         files = results.get('files', [])
         
-        # Add human-readable type to each file
         for file in files:
-            file['humanReadableType'] = self._get_human_readable_type(file['mimeType'])
+            mime_type = file.get('mimeType', '')
+            if mime_type in self.GOOGLE_MIME_TYPES:
+                file['downloadExtension'] = self.GOOGLE_MIME_TYPES[mime_type]['extension']
+            file['humanReadableType'] = self._get_human_readable_type(mime_type)
             file['canDelete'] = file.get('capabilities', {}).get('canDelete', False)
             file['canEdit'] = file.get('capabilities', {}).get('canEdit', False)
             file['permissionStatus'] = self._get_permission_status(file)
-
+            
+            # Add folder information
+            parents = file.get('parents', [])
+            if parents:
+                file['folderName'] = folder_map.get(parents[0], 'Unknown Folder')
+            else:
+                file['folderName'] = 'N/A'
+            
         return files
     
     def path_leaf(self, path):
@@ -167,38 +222,61 @@ class DriveClient:
         return file
     
 
-    def download_file(self, file_id: str, destination_path: str) -> bool:
+    def download_file(self, file_id: str, destination_path: str) -> tuple[bool, str]:
         """
         Downloads a file from Google Drive
 
         Args:
             file_id: Id of the file to be downloaded
-            desintation_path: Destination on local machine to save the file
+            destination_path: Base destination path on local machine
 
         Returns:
-            True if successful, False Otherwise
+            Tuple of (success: bool, final_path: str)
         """
-
         service = self._get_service()
-
-        request = service.files().get_media(fileId=file_id)
-
-        fh = io.BytesIO()
-        done = False
-        downloader = MediaIoBaseDownload(fh, request)
-
-        while not done:
-            _, done = downloader.next_chunk()
-
-        #jump to beginning of stream
-        fh.seek(0)
-
-        with open(destination_path, 'wb') as f:
-            f.write(fh.read())
-            f.flush()
         
-        return True
-        
+        try:
+            # First get the file metadata to check its type
+            file_metadata = service.files().get(fileId=file_id,
+                                              fields='id, name, mimeType').execute()
+            mime_type = file_metadata.get('mimeType', '')
+
+            # Handle Google Workspace files
+            if mime_type in self.GOOGLE_MIME_TYPES:
+                export_type = self.GOOGLE_MIME_TYPES[mime_type]
+                
+                # Add the appropriate extension to the destination path
+                base_path, _ = os.path.splitext(destination_path)
+                final_path = f"{base_path}{export_type['extension']}"
+                
+                request = service.files().export_media(
+                    fileId=file_id,
+                    mimeType=export_type['mime_type']
+                )
+            else:
+                final_path = destination_path
+                request = service.files().get_media(fileId=file_id)
+
+            fh = io.BytesIO()
+            downloader = MediaIoBaseDownload(fh, request)
+
+            done = False
+            while not done:
+                _, done = downloader.next_chunk()
+
+            fh.seek(0)
+
+            # Use a context manager to ensure file is properly closed
+            with open(final_path, 'wb') as f:
+                f.write(fh.getvalue())
+
+            fh.close()
+            
+            return True, final_path
+            
+        except Exception as e:
+            print(f"Error downloading file: {str(e)}")
+            return False, destination_path
 
     def delete_file(self, file_id: str) -> bool:
         """
@@ -213,3 +291,4 @@ class DriveClient:
         service = self._get_service()
         service.files().delete(fileId=file_id).execute()
         return True
+    

@@ -68,28 +68,43 @@ def upload_file():
 
     return redirect(url_for('index'))
 
+# Updated Flask route
 @app.route('/download/<file_id>/<filename>')
 def download_file(file_id, filename):
     """Handle file download"""
     try:
-        # Create temporary file for download
+        # Create temporary directory
         temp_dir = tempfile.mkdtemp()
-        temp_path = os.path.join(temp_dir, filename)
+        temp_base_path = os.path.join(temp_dir, filename)
         
-        # Download from Google Drive
-        success = drive_client.download_file(file_id, temp_path)
-        
-        if success:
-            return_data = send_file(temp_path, as_attachment=True, download_name=filename)
+        try:
+            # Download from Google Drive - now returns the actual path used
+            success, actual_path = drive_client.download_file(file_id, temp_base_path)
             
-            # Clean up temp file after sending
-            os.remove(temp_path)
-            os.rmdir(temp_dir)
-            
-            return return_data
-        else:
-            flash('Error downloading file', 'error')
-            return redirect(url_for('index'))
+            if success:
+                # Get the actual filename with extension
+                actual_filename = os.path.basename(actual_path)
+                
+                # Send file and clean up in a finally block
+                return_data = send_file(
+                    actual_path, 
+                    as_attachment=True,
+                    download_name=actual_filename  # Use filename with correct extension
+                )
+                return return_data
+            else:
+                flash('Error downloading file', 'error')
+                return redirect(url_for('index'))
+                
+        finally:
+            # Clean up temp files
+            try:
+                for file in os.listdir(temp_dir):
+                    os.remove(os.path.join(temp_dir, file))
+                os.rmdir(temp_dir)
+            except Exception as e:
+                print(f"Error cleaning up temporary files: {str(e)}")
+                
     except Exception as e:
         flash(f'Error downloading file: {str(e)}', 'error')
         return redirect(url_for('index'))
