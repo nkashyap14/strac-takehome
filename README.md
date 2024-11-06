@@ -17,7 +17,9 @@ strac-takehome/
 │   ├── auth/
 │   │   ├── auth_manager.py      # Handles OAuth authentication
 │   ├── drive/
-│   │   ├── driveclient.py       # Google Drive API interactions
+│   │   ├── driveclient.py       # Google Drive API interactions. Utilizes a Config and a AuthProvider abstract interface to initiate google drive api calls
+|   ├── interfaces/
+|   |   ├── interface.py         #Contains base interfaces. Including CloudConfig for future extensability for more secure authentication rather than local desktop based
 │   ├── templates/
 │   │   ├── index.html           # Main UI template
 │   ├── config.py                # Configuration management
@@ -54,6 +56,8 @@ strac-takehome/
    - Select "Desktop application"
    - Download the client configuration file
    - Rename it to `secrets.json`
+6. Place secret at proper path
+   - Place secrets.json at local_home_dir/.gdrive/secrets.json
 
 ### Installation
 1. Clone the repository:
@@ -107,6 +111,7 @@ pytest
 - **SOLID Principles**: The application follows SOLID principles with clear separation of concerns:
   - Single Responsibility: Each class has a single purpose (auth, drive operations, config)
   - Open/Closed: New functionality can be added without modifying existing code
+     - This is done via base abstract class interfaces to remove tight coupling between components. 
   - Interface Segregation: Clean interfaces between components
   - Dependency Inversion: Dependencies are injected and easily mockable
 
@@ -121,11 +126,10 @@ pytest
 - Mocked Google API calls for reliable testing
 
 ## Future Improvements
-1. Add support for folder creation and navigation
-2. Implement file sharing functionality
-3. Add search capabilities
-4. Add file preview functionality
-5. Support batch operations
+1. Implement concrete instances of CloudConfig interfaces which could be used to implement even more secure authentication flows by utilizing various cloud providers
+2. Increased development of front end beyond single landing page
+3. Extensive logging
+4. Implement alternative authentication models. Some possible ones are JWT, API Key based Auth, MFA, or even federated identities
 
 ## Contributing
 1. Fork the repository
@@ -134,4 +138,24 @@ pytest
 4. Submit a pull request
 
 ## License
-[Your chosen license]
+The MIT License (MIT)
+
+Copyright (c) 2011-2024 The Bootstrap Authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
