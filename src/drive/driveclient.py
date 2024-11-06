@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional
 import ntpath
 import os
 from src.interfaces.interface import AuthProvider
+from src.utils.utils import path_leaf
 
 class DriveClient:
     """
@@ -195,12 +196,7 @@ class DriveClient:
                 file['folderName'] = 'N/A'
             
         return files
-    
-    def path_leaf(self, path):
-        """Extracts the file name from a path utilizing the ntpath package"""
-        head, tail = ntpath.split(path)
-        return tail or ntpath.basename(head)
-    
+        
     def upload_file(self, file_path: str, folder_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Uploads a file frp, local path to Google Drive
@@ -215,7 +211,7 @@ class DriveClient:
         service = self._get_service()
 
         # Extract just the filename from the path
-        filename = self.path_leaf(file_path)
+        filename = path_leaf(file_path)
 
         #set up metadata
         file_metadata = {

@@ -6,7 +6,7 @@ from .drive.driveclient import DriveClient
 import os
 from datetime import datetime
 import tempfile
-import ntpath
+from src.utils.utils import path_leaf
 
 def create_app() -> Flask:
     """Create and configure the Flask application"""
@@ -127,7 +127,3 @@ def register_routes(app: Flask):
             flash(f'Error deleting file: {str(e)}', 'error')
         
         return redirect(url_for('index'))
-
-def path_leaf(path):
-    head, tail = ntpath.split(path)
-    return tail or ntpath.basename(head)

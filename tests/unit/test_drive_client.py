@@ -3,18 +3,18 @@ from unittest.mock import Mock, patch
 from src.drive.driveclient import DriveClient
 
 @pytest.fixture
-def mock_auth_manager():
+def mock_auth_provider():
     """Mock auth manager that returns fake credentials"""
-    auth_manager = Mock()
+    auth_provider = Mock()
     credentials = Mock()
     credentials.universe_domain = 'googleapis.com'
-    auth_manager.get_credentials.return_value = credentials
-    return auth_manager
+    auth_provider.get_credentials.return_value = credentials
+    return auth_provider
 
 @pytest.fixture
-def drive_client(mock_auth_manager):
+def drive_client(mock_auth_provider):
     """Create DriveClient with mocked auth manager"""
-    return DriveClient(mock_auth_manager)
+    return DriveClient(mock_auth_provider)
 
 @patch('src.drive.driveclient.build')
 def test_list_files(mock_build, drive_client):
@@ -62,7 +62,7 @@ def test_list_files(mock_build, drive_client):
 
     # Verify results
     assert files == files_response['files']
-    mock_build.assert_called_once_with('drive', 'v3', credentials=drive_client.auth_manager.get_credentials())
+    mock_build.assert_called_once_with('drive', 'v3', credentials=drive_client.auth_provider.get_credentials())
     
     # Verify both API calls were made with correct parameters
     assert files_mock.list.call_count == 2
@@ -113,7 +113,7 @@ def test_upload_file(mock_build, drive_client, tmp_path):
 
     # Verify results
     assert result == mock_response
-    mock_build.assert_called_once_with('drive', 'v3', credentials=drive_client.auth_manager.get_credentials())
+    mock_build.assert_called_once_with('drive', 'v3', credentials=drive_client.auth_provider.get_credentials())
 
 @patch('src.drive.driveclient.build')
 def test_delete_file(mock_build, drive_client):
@@ -136,5 +136,5 @@ def test_delete_file(mock_build, drive_client):
 
     # Verify results
     assert result is True
-    mock_build.assert_called_once_with('drive', 'v3', credentials=drive_client.auth_manager.get_credentials())
+    mock_build.assert_called_once_with('drive', 'v3', credentials=drive_client.auth_provider.get_credentials())
     files_mock.delete.assert_called_once_with(fileId='1')
