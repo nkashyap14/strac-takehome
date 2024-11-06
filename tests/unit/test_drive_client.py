@@ -24,30 +24,62 @@ def test_list_files(mock_build, drive_client):
     mock_service = Mock()
     mock_build.return_value = mock_service
     
-    # Setup expected files
-    mock_files = [
-        {'id': '1', 'name': 'test.txt', 'mimeType': 'text/plain', 'modifiedTime': '2024-01-01T00:00:00.000Z'}
-    ]
+    # Setup mock responses
+    folders_response = {
+        'files': [
+            {'id': 'folder1', 'name': 'Test Folder'}
+        ]
+    }
+    
+    files_response = {
+        'files': [
+            {
+                'id': '1',
+                'name': 'test.txt',
+                'mimeType': 'text/plain',
+                'modifiedTime': '2024-01-01T00:00:00.000Z',
+                'parents': ['folder1']
+            }
+        ]
+    }
     
     # Setup mock chain
     files_mock = Mock()
-    list_mock = Mock()
-    execute_mock = Mock(return_value={'files': mock_files})
-    
     mock_service.files.return_value = files_mock
-    files_mock.list.return_value = list_mock
-    list_mock.execute = execute_mock
+
+    # First call for folders
+    list_mock_folders = Mock()
+    list_mock_folders.execute.return_value = folders_response
+    
+    # Second call for files
+    list_mock_files = Mock()
+    list_mock_files.execute.return_value = files_response
+    
+    # Setup the list method to return different mocks on subsequent calls
+    files_mock.list.side_effect = [list_mock_folders, list_mock_files]
 
     # Execute test
     files = drive_client.list_files()
 
     # Verify results
-    assert files == mock_files
+    assert files == files_response['files']
     mock_build.assert_called_once_with('drive', 'v3', credentials=drive_client.auth_manager.get_credentials())
-    files_mock.list.assert_called_once_with(
-        pageSize=100,
-        fields="files(id, name, mimeType, modifiedTime)"
-    )
+    
+    # Verify both API calls were made with correct parameters
+    assert files_mock.list.call_count == 2
+    
+    # First call should be for folders
+    assert files_mock.list.call_args_list[0][1] == {
+        'q': "mimeType = 'application/vnd.google-apps.folder'",
+        'fields': 'files(id, name)'
+    }
+    
+    # Second call should be for non-folder files
+    assert files_mock.list.call_args_list[1][1] == {
+        'q': "mimeType != 'application/vnd.google-apps.folder'",
+        'pageSize': 100,
+        'fields': 'files(id, name, mimeType, modifiedTime, capabilities/canEdit, capabilities/canDelete, shared, ownedByMe, parents)'
+    }
 
 @patch('src.drive.driveclient.build')
 def test_upload_file(mock_build, drive_client, tmp_path):

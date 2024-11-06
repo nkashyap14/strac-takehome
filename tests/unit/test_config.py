@@ -18,5 +18,5 @@ def test_config_paths(drive_config, mock_home_dir):
     assert drive_config.secrets == mock_home_dir / '.gdrive' / 'secrets.json'
 
 def test_scopes_exist(drive_config):
-    assert 'https://www.googleapis.com/auth/drive.file' in drive_config.scopes
+    assert 'https://www.googleapis.com/auth/drive' in drive_config.scopes
     assert 'https://www.googleapis.com/auth/drive.metadata.readonly' in drive_config.scopes
