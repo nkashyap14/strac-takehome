@@ -223,60 +223,50 @@ class DriveClient:
     
 
     def download_file(self, file_id: str, destination_path: str) -> tuple[bool, str]:
-        """
-        Downloads a file from Google Drive
-
-        Args:
-            file_id: Id of the file to be downloaded
-            destination_path: Base destination path on local machine
-
-        Returns:
-            Tuple of (success: bool, final_path: str)
-        """
+        """Downloads a file from Google Drive"""
         service = self._get_service()
         
         try:
-            # First get the file metadata to check its type
-            file_metadata = service.files().get(fileId=file_id,
-                                              fields='id, name, mimeType').execute()
+            # Get file metadata first
+            file_metadata = service.files().get(
+                fileId=file_id,
+                fields='id, name, mimeType'
+            ).execute()
+            
             mime_type = file_metadata.get('mimeType', '')
-
+            
             # Handle Google Workspace files
             if mime_type in self.GOOGLE_MIME_TYPES:
-                export_type = self.GOOGLE_MIME_TYPES[mime_type]
-                
-                # Add the appropriate extension to the destination path
-                base_path, _ = os.path.splitext(destination_path)
-                final_path = f"{base_path}{export_type['extension']}"
-                
+                export_mime_type = self.GOOGLE_MIME_TYPES[mime_type]['mime_type']
                 request = service.files().export_media(
                     fileId=file_id,
-                    mimeType=export_type['mime_type']
+                    mimeType=export_mime_type
                 )
             else:
-                final_path = destination_path
+                # Handle binary files
                 request = service.files().get_media(fileId=file_id)
-
+            
             fh = io.BytesIO()
             downloader = MediaIoBaseDownload(fh, request)
-
+            
             done = False
             while not done:
-                _, done = downloader.next_chunk()
-
-            fh.seek(0)
-
-            # Use a context manager to ensure file is properly closed
-            with open(final_path, 'wb') as f:
-                f.write(fh.getvalue())
-
-            fh.close()
+                status, done = downloader.next_chunk()
             
-            return True, final_path
+            fh.seek(0)
+            
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(destination_path) or '.', exist_ok=True)
+            
+            with open(destination_path, 'wb') as f:
+                f.write(fh.getvalue())
+                
+            fh.close()
+            return True
             
         except Exception as e:
             print(f"Error downloading file: {str(e)}")
-            return False, destination_path
+            return False            
 
     def delete_file(self, file_id: str) -> bool:
         """

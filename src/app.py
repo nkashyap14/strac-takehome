@@ -1,11 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash
-from src.config import DriveConfig
-from src.auth.auth_manager import AuthManager
-from src.drive.driveclient import DriveClient
+from .config import DriveConfig
+from .auth.auth_manager import AuthManager
+from .drive.driveclient import DriveClient
 import os
 from datetime import datetime
 import tempfile
-import ntpath  # For handling paths on both Windows and Unix systems
+import ntpath
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Required for flash messages
@@ -14,6 +14,8 @@ app.secret_key = 'your-secret-key-here'  # Required for flash messages
 config = DriveConfig()
 auth_manager = AuthManager(config)
 drive_client = DriveClient(auth_manager)
+
+app.config['auth_manager'] = auth_manager
 
 @app.route('/')
 def index():
@@ -68,28 +70,23 @@ def upload_file():
 
     return redirect(url_for('index'))
 
-# Updated Flask route
 @app.route('/download/<file_id>/<filename>')
 def download_file(file_id, filename):
     """Handle file download"""
     try:
         # Create temporary directory
         temp_dir = tempfile.mkdtemp()
-        temp_base_path = os.path.join(temp_dir, filename)
+        temp_path = os.path.join(temp_dir, filename)
         
         try:
-            # Download from Google Drive - now returns the actual path used
-            success, actual_path = drive_client.download_file(file_id, temp_base_path)
+            # Download from Google Drive
+            success = drive_client.download_file(file_id, temp_path)
             
-            if success:
-                # Get the actual filename with extension
-                actual_filename = os.path.basename(actual_path)
-                
-                # Send file and clean up in a finally block
+            if success and os.path.exists(temp_path):
                 return_data = send_file(
-                    actual_path, 
+                    temp_path,
                     as_attachment=True,
-                    download_name=actual_filename  # Use filename with correct extension
+                    download_name=filename
                 )
                 return return_data
             else:
@@ -99,9 +96,10 @@ def download_file(file_id, filename):
         finally:
             # Clean up temp files
             try:
-                for file in os.listdir(temp_dir):
-                    os.remove(os.path.join(temp_dir, file))
-                os.rmdir(temp_dir)
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                if os.path.exists(temp_dir):
+                    os.rmdir(temp_dir)
             except Exception as e:
                 print(f"Error cleaning up temporary files: {str(e)}")
                 
