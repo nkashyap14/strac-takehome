@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import Mock, patch
 from src.drive.driveclient import DriveClient
-from src.auth.auth_manager import AuthManager
 
 @pytest.fixture
 def mock_auth_manager():

@@ -1,10 +1,10 @@
 import pytest
 from pathlib import Path
-from src.config import DriveConfig
+from src.config import DefaultDriveConfig
 
 
 def test_singleton_instance(drive_config):
-    config2 = DriveConfig()
+    config2 = DefaultDriveConfig()
     assert drive_config is config2
 
 def test_directory_creation(drive_config, mock_home_dir):

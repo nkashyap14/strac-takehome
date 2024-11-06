@@ -1,11 +1,11 @@
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
-from src.auth.auth_manager import AuthManager  # Updated import
 import io
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 import ntpath
 import os
+from src.interfaces.interface import AuthProvider
 
 class DriveClient:
     """
@@ -13,6 +13,7 @@ class DriveClient:
     Handles file operations and service initialization
     """
 
+    #mapping of mime types to extension and description to be utilized by utility funcitons
     GOOGLE_MIME_TYPES = {
         'application/vnd.google-apps.document': {
             'mime_type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -31,9 +32,11 @@ class DriveClient:
         },
     }
 
+    #constant variable representing the mime type value of a folder
     FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
 
 
+    #mapping of mime type to human readable descriptions
     MIME_TYPE_MAPPING = {
         # Google Workspace Types
         
@@ -91,15 +94,15 @@ class DriveClient:
         'application/sql': 'SQL File'
     }
 
-    def __init__(self, auth_manager: AuthManager):
+    def __init__(self, auth_provider: AuthProvider):
         """
         Initialize the drive client with associated Authentication manager
 
         Args:
-            auth_manager: AuthManager instance for handling OAuth 2.0 flow
+            auth_provider: AuthProvider interface instance for handling authentication flow
         """
 
-        self.auth_manager = auth_manager
+        self.auth_provider = auth_provider
         self._service = None
 
     def _get_human_readable_type(self, mime_type: str) -> str:
@@ -112,8 +115,11 @@ class DriveClient:
         return self.MIME_TYPE_MAPPING.get(mime_type, mime_type)
 
     def _get_service(self):
+        """
+        Builds and returns a google api service object which is ultimately utilized by the driveclient to interact with google api
+        """
         if not self._service:
-            credentials = self.auth_manager.get_credentials()
+            credentials = self.auth_provider.get_credentials()
             self._service = build('drive', 'v3', credentials=credentials)
 
         return self._service
@@ -147,14 +153,19 @@ class DriveClient:
         return mime_to_ext.get(mime_type, '')
 
     def list_files(self) -> List[Dict[str, Any]]:
+        """
+        Grabs a google api service object. Sends an api call to get all folders and files listed 
+        """
+        #grab our connection to the google files service
         service = self._get_service()
         
-        # First get all folders to build a folder mapping
+        # get all folders from the api to build a folder mapping
         folder_results = service.files().list(
             q=f"mimeType = '{self.FOLDER_MIME_TYPE}'",
             fields="files(id, name)",
         ).execute()
         
+        #Build the dictionary mapping folder id's to a folder name for all folders returned
         folder_map = {folder['id']: folder['name'] 
                      for folder in folder_results.get('files', [])}
 
@@ -186,13 +197,13 @@ class DriveClient:
         return files
     
     def path_leaf(self, path):
-        """Extract the filename from a path, works on both Windows and Unix paths"""
+        """Extracts the file name from a path utilizing the ntpath package"""
         head, tail = ntpath.split(path)
         return tail or ntpath.basename(head)
     
     def upload_file(self, file_path: str, folder_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Uploads a file on local path to Google Drive
+        Uploads a file frp, local path to Google Drive
 
         Args:
             file_path: Path of file to upload
@@ -206,13 +217,16 @@ class DriveClient:
         # Extract just the filename from the path
         filename = self.path_leaf(file_path)
 
+        #set up metadata
         file_metadata = {
-            'name': filename,  # Use clean filename instead of full path
+            'name': filename,
             'parents': [folder_id] if folder_id else []
         }
 
+        #set up request to upload file
         media = MediaFileUpload(file_path, resumable=True)
 
+        #initiate upload of file
         file = service.files().create(
             body=file_metadata,
             media_body=media,
@@ -246,21 +260,27 @@ class DriveClient:
                 # Handle binary files
                 request = service.files().get_media(fileId=file_id)
             
+            #set up byte stream
             fh = io.BytesIO()
+            #pass bytestream and request to download request
             downloader = MediaIoBaseDownload(fh, request)
             
             done = False
+            #keep downloading until all of the file is done
             while not done:
                 status, done = downloader.next_chunk()
             
+            #move pointer to beginning of byte stream
             fh.seek(0)
             
             # Ensure the directory exists
             os.makedirs(os.path.dirname(destination_path) or '.', exist_ok=True)
             
+            #dump the stream to destination
             with open(destination_path, 'wb') as f:
                 f.write(fh.getvalue())
                 
+            #close stream
             fh.close()
             return True
             

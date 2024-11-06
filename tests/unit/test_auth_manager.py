@@ -2,7 +2,6 @@ import pytest
 from unittest.mock import Mock, patch
 import json
 import os
-from src.auth.auth_manager import AuthManager
 
 @pytest.fixture
 def mock_credentials():

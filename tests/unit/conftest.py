@@ -1,15 +1,15 @@
 import pytest
 from unittest.mock import Mock, patch
 from pathlib import Path
-from src.config import DriveConfig
-from src.auth.auth_manager import AuthManager
+from src.config import DefaultDriveConfig
+from src.auth.auth_manager import OAuthManager
 from src.drive.driveclient import DriveClient
 
 
 @pytest.fixture(autouse=True)
 def reset_singleton():
     """Reset the singleton between tests"""
-    DriveConfig._instance = None
+    DefaultDriveConfig._instance = None
     yield
 
 @pytest.fixture
@@ -24,9 +24,9 @@ def mock_home_dir(tmp_path):
 
 @pytest.fixture
 def drive_config(mock_home_dir):
-    """Provides a DriveConfig instance with mocked home directory"""
-    return DriveConfig()
+    """Provides a DefaultDriveConfig instance with mocked home directory"""
+    return DefaultDriveConfig()
 
 @pytest.fixture
 def auth_manager(drive_config):
-    return AuthManager(drive_config)
+    return OAuthManager(drive_config)

@@ -3,17 +3,18 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import json
 import os
-from typing import Optional
-from ..config import DriveConfig
+from typing import Optional, Any
+from src.interfaces.interface import AuthProvider, Config
 
-class AuthManager:
-    def __init__(self, config: DriveConfig):
-        """Initialize the AuthManager"""
+
+class OAuthManager(AuthProvider):
+    def __init__(self, config: Config):
+        """Initialize the OAuthManager"""
         self.config = config
         self._credentials: Optional[Credentials] = None
         self._testing = False  # Add this flag
 
-    def get_credentials(self) -> Credentials:
+    def get_credentials(self) -> Any:
         """Gets valid OAuth credentials for Google Drive API Access"""
         # If we already have valid credentials, return them
         if self._credentials and self._credentials.valid:
@@ -25,7 +26,7 @@ class AuthManager:
         # If credentials are loaded but expired, try to refresh
         if self._credentials and self._credentials.expired and self._credentials.refresh_token:
             try:
-                self._refresh_credentials()
+                self.refresh_credentials()  # Use the interface method
             except Exception as e:
                 print(f"Error refreshing credentials: {str(e)}")
                 self._credentials = None
@@ -40,6 +41,25 @@ class AuthManager:
 
         return self._credentials
 
+    def refresh_credentials(self) -> bool:
+        """
+        Implementation of abstract method from AuthProvider interface.
+        Refreshes expired credentials.
+        
+        Returns:
+            bool: True if refresh successful, False otherwise
+        """
+        if not self._credentials:
+            return False
+            
+        try:
+            self._credentials.refresh(Request())
+            return True
+        except Exception as e:
+            print(f"Error refreshing credentials: {str(e)}")
+            self._credentials = None
+            return False
+
     def _load_credentials(self) -> None:
         """Load credentials from file if they exist"""
         if os.path.exists(self.config.credentials):
@@ -53,7 +73,7 @@ class AuthManager:
                 self._credentials = None
 
     def _save_credentials(self) -> None:
-        """Save credentials to file"""
+        """Saves credentials to file"""
         if not self._credentials:
             return
 
@@ -72,17 +92,6 @@ class AuthManager:
                 json.dump(creds_data, token_file)
         except Exception as e:
             print(f"Error saving credentials: {str(e)}")
-
-    def _refresh_credentials(self) -> None:
-        """Refresh expired credentials"""
-        if not self._credentials:
-            return
-            
-        try:
-            self._credentials.refresh(Request())
-        except Exception as e:
-            print(f"Error refreshing credentials: {str(e)}")
-            self._credentials = None
 
     def _run_oauth_flow(self) -> None:
         """Run the OAuth flow to get new credentials"""

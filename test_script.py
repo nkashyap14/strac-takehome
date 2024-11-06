@@ -1,7 +1,12 @@
 import os
-from src.config import DriveConfig
-from src.auth.auth_manager import AuthManager
+from src.config import DefaultDriveConfig
+from src.auth.auth_manager import OAuthManager
 from src.drive.driveclient import DriveClient
+
+"""
+Simple test script that executes the basic functionality for the google drive client with a file named test_download.txt
+Sets up the config, passes it in to the auth manager and then initiates the client with the auth manager. Cleans up and removes the test_download file upon completion
+"""
 
 def main():
     # Create a test file
@@ -10,8 +15,8 @@ def main():
         f.write("This is a test file for Google Drive upload!")
 
     # Initialize our components
-    config = DriveConfig()
-    auth_manager = AuthManager(config)
+    config = DefaultDriveConfig()
+    auth_manager = OAuthManager(config)
     drive_client = DriveClient(auth_manager)
     download_path = "test_download.txt"
 
@@ -30,7 +35,7 @@ def main():
         # Download the file to a new location
         print("\nDownloading the file...")
         success = drive_client.download_file(uploaded_file['id'], download_path)
-        if success:
+        if success: 
             print("File downloaded successfully!")
             
             # Verify the content
