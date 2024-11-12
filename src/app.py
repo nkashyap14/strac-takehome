@@ -18,7 +18,6 @@ def create_app() -> Flask:
     
     # Create Flask app
     app = Flask(__name__)
-    app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
     
     # Store our components in app config
     app.config['auth_manager'] = auth_manager
