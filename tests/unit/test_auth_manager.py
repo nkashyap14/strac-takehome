@@ -16,8 +16,7 @@ def mock_credentials():
     credentials.scopes = ['fake_scope']
     return credentials
 
-# Change the patch path to include the full module path
-@patch('src.auth.auth_manager.Credentials')  # Changed this line
+@patch('src.auth.auth_manager.Credentials')
 def test_load_credentials(mock_creds_class, auth_manager, mock_credentials):
     """Test loading credentials from file"""
     # Setup: Create a credentials file
@@ -48,9 +47,8 @@ def test_load_credentials(mock_creds_class, auth_manager, mock_credentials):
         auth_manager.config.scopes
     )
 
-# Change the patch path and add patch for open
-@patch('src.auth.auth_manager.InstalledAppFlow')  # Changed this line
-@patch('builtins.open')  # Add this to mock file operations
+@patch('src.auth.auth_manager.InstalledAppFlow')
+@patch('builtins.open')
 def test_run_oauth_flow(mock_open, mock_flow_class, auth_manager, mock_credentials):
     """Test OAuth flow execution"""
     # Setup mock flow
